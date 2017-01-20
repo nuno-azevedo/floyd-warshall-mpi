@@ -1,0 +1,47 @@
+# 1 Hosts x 8 Cores
+localhost cpu=8
+
+# 4 Hosts x 4 Cores
+# t0102 cpu=4
+# t0103 cpu=4
+# t0104 cpu=4
+# t0105 cpu=4
+
+# 16 Hosts x 1 Cores
+# t0102 cpu=1
+# t0103 cpu=1
+# t0104 cpu=1
+# t0105 cpu=1
+# t0106 cpu=1
+# t0107 cpu=1
+# t0108 cpu=1
+# t0109 cpu=1
+# t0110 cpu=1
+# t0111 cpu=1
+# t0112 cpu=1
+# t0113 cpu=1
+# t0114 cpu=1
+# t0115 cpu=1
+# t0116 cpu=1
+# t0117 cpu=1
+
+# All
+# t0102 cpu=4
+# t0103 cpu=4
+# t0104 cpu=4
+# t0105 cpu=4
+# t0106 cpu=4
+# t0107 cpu=4
+# t0108 cpu=4
+# t0109 cpu=4
+# t0110 cpu=4
+# t0111 cpu=4
+# t0112 cpu=4
+# t0113 cpu=4
+# t0114 cpu=4
+# t0115 cpu=4
+# t0116 cpu=4
+# t0117 cpu=4
+# t0118 cpu=4
+# t0119 cpu=4
+# t0120 cpu=4
