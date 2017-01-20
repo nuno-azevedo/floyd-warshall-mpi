@@ -1,0 +1,117 @@
+mpirun -np 1  -hostfile hosts.txt floyd < Tests/Input6.txt    | diff - Tests/Output6.txt
+
+Execution Time:      0.088 milliseconds.
+
+
+mpirun -np 4  -hostfile hosts.txt floyd < Tests/Input6.txt    | diff - Tests/Output6.txt
+
+Execution Time:      0.046 milliseconds.
+
+
+mpirun -np 9  -hostfile hosts.txt floyd < Tests/Input6.txt    | diff - Tests/Output6.txt
+
+Execution Time:      1.001 milliseconds.
+
+
+
+
+mpirun -np 1  -hostfile hosts.txt floyd < Tests/Input12.txt   | diff - Tests/Output12.txt
+
+Execution Time:      0.094 milliseconds.
+
+
+mpirun -np 4  -hostfile hosts.txt floyd < Tests/Input12.txt   | diff - Tests/Output12.txt
+
+Execution Time:      0.062 milliseconds.
+
+
+mpirun -np 9  -hostfile hosts.txt floyd < Tests/Input12.txt   | diff - Tests/Output12.txt
+
+Execution Time:      1.905 milliseconds.
+
+
+mpirun -np 16  -hostfile hosts.txt floyd < Tests/Input12.txt  | diff - Tests/Output12.txt
+
+Execution Time:      2.119 milliseconds.
+
+
+
+
+mpirun -np 1  -hostfile hosts.txt floyd < Tests/Input60.txt   | diff - Tests/Output60.txt
+
+Execution Time:      1.558 milliseconds.
+
+
+mpirun -np 4  -hostfile hosts.txt floyd < Tests/Input60.txt   | diff - Tests/Output60.txt
+
+Execution Time:      0.636 milliseconds.
+
+
+mpirun -np 9  -hostfile hosts.txt floyd < Tests/Input60.txt   | diff - Tests/Output60.txt
+
+Execution Time:     17.026 milliseconds.
+
+
+mpirun -np 16  -hostfile hosts.txt floyd < Tests/Input60.txt  | diff - Tests/Output60.txt
+
+Execution Time:      8.769 milliseconds.
+
+
+
+
+mpirun -np 1  -hostfile hosts.txt floyd < Tests/Input300.txt  | diff - Tests/Output300.txt
+
+Execution Time:    272.490 milliseconds.
+
+
+mpirun -np 4  -hostfile hosts.txt floyd < Tests/Input300.txt  | diff - Tests/Output300.txt
+
+Execution Time:     57.058 milliseconds.
+
+
+mpirun -np 9  -hostfile hosts.txt floyd < Tests/Input300.txt  | diff - Tests/Output300.txt
+
+Execution Time:    466.673 milliseconds.
+
+
+mpirun -np 16  -hostfile hosts.txt floyd < Tests/Input300.txt | diff - Tests/Output300.txt
+
+Execution Time:    309.119 milliseconds.
+
+
+
+
+mpirun -np 16 -hostfile hosts.txt floyd < Tests/Input600.txt  | diff - Tests/Output600.txt
+
+Execution Time:   1458.365 milliseconds.
+
+
+mpirun -np 25 -hostfile hosts.txt floyd < Tests/Input600.txt  | diff - Tests/Output600.txt
+
+Execution Time:   1839.250 milliseconds.
+
+
+mpirun -np 36 -hostfile hosts.txt floyd < Tests/Input600.txt  | diff - Tests/Output600.txt
+
+Execution Time:   1648.992 milliseconds.
+
+
+
+
+mpirun -np 64 -hostfile hosts.txt floyd < Tests/Input1000.txt | diff - Tests/Output1000.txt
+
+Execution Time:   3629.849 milliseconds.
+
+
+
+
+mpirun -np 64 -hostfile hosts.txt floyd < Tests/Input1200.txt | diff - Tests/Output1200.txt
+
+Execution Time:   5071.754 milliseconds.
+
+
+
+
+mpirun -np 64 -hostfile hosts.txt floyd < Tests/Input1400.txt | diff - Tests/Output1400.txt
+
+Execution Time:   6831.672 milliseconds.
