@@ -1,0 +1,269 @@
+\documentclass{llncs}
+
+\usepackage{geometry}
+\geometry{
+  a4paper,           % or letterpaper
+  textwidth = 14cm,  % llncs has 12.2cm
+  textheight = 22cm, % llncs has 19.3cm
+  heightrounded,     % integer number of lines
+  hratio = 1:1,      % horizontally centered
+  vratio = 2:3,      % not vertically centered
+}
+
+\usepackage{indentfirst}
+\usepackage{setspace}
+\usepackage{footnote}
+\usepackage{caption}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{pgfplots}
+
+\begin{document}
+
+\pagestyle{plain}
+
+% ------------------------------------------------------------
+
+\title{\huge{Caminho Mais Curto entre Todos os Pares de Vértices}}
+\author{\setstretch{12}\Large{Marco Pontes, Nuno Azevedo}}
+\institute{
+	\setstretch{2}
+	\email{\large{up201308000@fc.up.pt, up201306310@fc.up.pt}} \\
+	\setstretch{9}\Large{Computação Paralela} \\
+	\setstretch{2}\large{DCC/FCUP} \\
+	\setstretch{8}\large{7 Novembro de 2016}
+}
+\maketitle
+
+% ------------------------------------------------------------
+
+\newpage
+
+\section{Motivação}
+O objetivo deste trabalho consiste na implementação de um algoritmo que determine os caminhos mais curtos entre pares de nós num dado grafo dirigido. O grafo é representado numa matriz quadrática com dimensão igual ao seu número de nós, cujo valor na posição \textit{(i, j)} da matriz é o peso da aresta que faz a conexão entre os nós \textit{i} e \textit{j} no grafo.
+
+O nosso programa recebe essa matriz como entrada e usando a ideia base do algoritmo de \textit{Fox} para multiplicação de matrizes de forma distribuída utilizando várias unidades de processamento, mas em vez de multiplicar matrizes, aplica o algoritmo de \textit{Floyd-Warshall} para encontrar o caminho mais curto entre todos os pares de nós do grafo. A comunicação entre as várias unidades de processamento é feita através de um protocolo de transmissão de mensagens denominado \textit{MPI (Message Passing Interface)}\footnote{https://www.open-mpi.org/}.
+
+\section{Implementação}
+\subsection{Algoritmo de \textit{Fox}}
+
+O algoritmo de \textit{Fox} é usado para multiplicação de matrizes em paralelo. Supondo que temos $n^2$ processos, a matriz inicial $N\times N$ é dividida em sub-matrizes de dimensão ($\frac{N}{Q})\times(\frac{N}{Q}$) e atribui cada sub-matriz a um processo.
+
+O exemplo seguinte ilustra a aplicação do algoritmo a duas matrizes quadráticas de tamanho 2.
+
+\begin{equation}
+  \left(\begin{array}{@{}*{16}{c}@{}}
+    A_{00}\, & \,A_{01} \\
+    A_{10}\, & \,A_{11}
+  \end{array}\right)
+  \left(\begin{array}{@{}*{16}{c}@{}}
+    B_{00}\, & \,B_{01} \\
+    B_{10}\, & \,B_{11}
+  \end{array}\right) =
+  \left(\begin{array}{@{}*{16}{c}@{}}
+    A_{00}B_{00} + A_{01}B_{10}\, & \,A_{00}B_{01} + A_{01}B_{11} \\
+    A_{10}B_{00} + A_{11}B_{10}\, & \,A_{10}B_{01} + A_{11}B_{11}
+  \end{array}\right)
+\end{equation}
+
+Para calcular cada sub-matriz, cada processo necessita da informação dos processos que ficaram responsáveis pelas sub-matrizes da mesma linha e coluna.
+
+Cada sub-matriz das matrizes originais (A e B) são entregues a um processo da seguinte forma:
+
+\begin{table}[]
+\centering
+\renewcommand{\arraystretch}{2}
+\begin{tabular}{l|l}
+$P_{00}$ \, & \, $P_{01}$ \\ [1.4mm]
+\hline
+$P_{10}$ \, & \, $P_{11}$
+\end{tabular}
+\end{table}
+
+Após o cálculo de cada processo, volta-se a agrupar as sub-matrizes resultado de cada um destes, formando uma nova matriz C, resultante da multiplicação de A por B.
+
+\subsection{Algoritmo de \textit{Floyd-Warshall}}
+
+O algoritmo de \textit{Floyd-Warshall} calcula o caminho mais curto entre todos os pares de nós de um dado grafo pesado. Com uma complexidade de $O(N^3)$, para cada dois nós \textit{(i, j)}, o algoritmo procura a possibilidade de existir um terceiro nó \textit{k} cuja soma do peso das ligações entre \textit{(i, k)} e \textit{(k, j)} seja inferior ao custo da ligação direta entre \textit{(i, j)}. No caso de ainda não existir ligação direta entre os nós $(i, j)$, passa-se a ter conhecimento de que existe um caminho secundário que os une.
+
+\subsection{Estruturas de Dados Usadas}
+
+Para armazenar as várias matrizes necessárias durante o processo fizemos alocações de memória contíguas de tamanho $(n\times n\times sizeof(int))$, em que \textit{n} é a dimensão da matriz e \textit{sizeof(int)} é o tamanho em \textit{bytes} de um número inteiro, através da função da biblioteca de C \textit{malloc()} que nos retorna um apontador para o início da região de memória reservada. Para realizarmos o acesso à memória simulando uma matriz convertemos o apontador retornado para o tipo \textit{(int (*)[n])}, o que nos permite depois aceder à coluna \textit{(i, j)} da matriz através da notação \textit{matriz[i][j]}.
+
+Utilizamos uma \textit{struct} para guardar todas as informações relacionadas com o \textit{MPI}, tal como o \textit{rank} do processo, número total de processos, posição do processo na matriz, comunicadores entre linhas e colunas e comunicador geral.
+
+\subsection{Funções Auxiliares Usadas}
+
+\begin{itemize}
+\item \textit{\textbf{setup\_grid()}}: Cria todos os comunicadores \textit{MPI} necessários para a troca de mensagens entre os processos, e uma topologia de mapa de processos sobre a matriz de entrada para decidir qual a sub-matriz pela qual o processo ficará responsável. \\
+
+\item \textit{\textbf{check\_fox()}}: Verifica se é possível aplicar o algoritmo de \textit{Fox} dado uma matriz de tamanho \textit{N} e \textit{P} unidades de processamento. \\
+
+\item \textit{\textbf{send\_sub\_mtrx()}}: Usada pelo processo \textit{root} para partilhar as restantes sub-matrizes com os outros processos através da função \textit{MPI\_Send()}. \\
+
+\item \textit{\textbf{fix\_final\_mtrx()}}: Ao fazer a união das sub-matrizes de todos os processos através do \textit{MPI\_Gather()} para obter a matriz final, esta matriz fica desorganizada e cada posição \textit{(i, j)} desta não corresponde à posição \textit{(i, j)} da matriz inicial, esta função é utilizado para voltar a organizar a matriz. \\
+
+\item \textit{\textbf{print\_mtrx()}}: Imprime as matrizes linha por linha com as colunas separadas por espaços, para uma visualização correta.
+\end{itemize}
+
+\section{Dificuldades na Implementação}
+
+A alocação de memória para as matrizes de forma eficiente foi um dos problemas que nos levou algum tempo para resolver, pois a primeira implementação a que chegamos envolvia várias chamadas à função de sistema \textit{malloc()}, pois alocávamos um \textit{array} com \textit{N} elementos e depois em cada elemento deste voltávamos a alocar um novo \textit{array} com \textit{N} elementos, para assim representar uma matriz com $N \times N$ elementos. Devido à função \textit{malloc()} ter um custo elevado, tentamos então encontrar uma melhor solução e após uma análise mais aprofundada verificamos que poderíamos alocar a memória para a matriz inteira de uma só vez, como se de um \textit{array} se tratasse, e converter depois o apontador retornado pelo \textit{malloc()} para representar um array com \textit{N} elementos. \\
+
+Após o cálculo de cada processo, é necessário voltar a construir uma matriz do tamanho da original através das sub-matrizes que cada um dos processos gerou. Ao realizar a chamada à função \textit{MPI\_Gather()} para unir estas sub-matrizes, temos de reestruturar a matriz gerada, para que cada par de coordenadas desta coincida com a matriz original. Tivemos de analisar como é que a concatenação das sub-matrizes estava a ser feita pelo \textit{MPI\_Gather()} para percebermos como voltar a reestruturar a matriz.
+
+\section{Avaliação de Desempenho}
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+	title={Desempenho para uma matriz de tamanho 6},
+	width=13cm, height=5cm,
+	x tick label style={/pgf/number format/1000 sep=},
+	xlabel=Número de \textit{Cores},
+	xticklabels={1, 4, 9},
+	ylabel=Tempo \textit{(ms)},
+	ybar interval=0.8,
+	ymajorgrids=true,
+	enlargelimits=0.05,
+]
+\addplot coordinates {(1, 0.088)(2, 0.046)(3, 1.001)(4, 0)};
+\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+\begin{axis}[
+	title={Desempenho para uma matriz de tamanho 12},
+	width=13cm, height=5cm,
+	x tick label style={/pgf/number format/1000 sep=},
+	xlabel=Número de \textit{Cores},
+	xticklabels={1, 4, 9, 16},
+	ylabel=Tempo \textit{(ms)},
+	ybar interval=0.8,
+	ymajorgrids=true,
+	enlargelimits=0.05,
+]
+\addplot coordinates {(1, 0.094)(2, 0.062)(3, 1.905)(4, 2.119)(5, 0)};
+\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+\begin{axis}[
+	title={Desempenho para uma matriz de tamanho 60},
+	width=13cm, height=5cm,
+	x tick label style={/pgf/number format/1000 sep=},
+	xlabel=Número de \textit{Cores},
+	xticklabels={1, 4, 9, 16},
+	ylabel=Tempo \textit{(ms)},
+	ybar interval=0.8,
+	ymajorgrids=true,
+	enlargelimits=0.05,
+]
+\addplot coordinates {(1, 1.558)(2, 0.636)(3, 17.026)(4, 8.769)(5, 0)};
+\end{axis}
+\end{tikzpicture}
+
+\begin{tikzpicture}
+\begin{axis}[
+	title={Desempenho para uma matriz de tamanho 300},
+	width=13cm, height=5cm,
+	x tick label style={/pgf/number format/1000 sep=},
+	xlabel=Número de \textit{Cores},
+	xticklabels={1, 4, 9, 16},
+	ylabel=Tempo \textit{(ms)},
+	ybar interval=0.8,
+	ymajorgrids=true,
+	enlargelimits=0.05,
+]
+\addplot coordinates {(1, 272.490)(2, 58.058)(3, 466.673)(4, 309.119)(5, 0)};
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+Em análise aos gráficos acima, verificamos que de uma forma geral compensa utilizar mais unidades de processamento até ao ponto em que é necessário uma nova máquina, pois aí os tempos aumentam drasticamente devido à latência da comunicação entre as máquinas. Por exemplo, vemos que em todos os gráficos acima, a diferença entre utilizar apenas 4 \textit{cores} (1 máquina) contra utilizar 9 \textit{cores} (3 máquinas) é elevada, neste caso os tempos de execução aumentam cerca de 10 vezes. A partir do momento em que usamos mais de uma máquina, ou seja, já introduzimos a latência de comunicação, utilizar mais máquinas tem um resultado positivo pois obtemos um maior poder de processamento, o que se pode novamente comprovar nos gráficos através da utilização de 9 \textit{cores} (3 máquinas) contra 16 \textit{cores} (4 máquinas).
+
+Observamos também que a latência de comunicação entre máquinas tem um impacto tão grande tal que a resolução do problema localmente com apenas 1 unidade de processamento tem um desempenho superior à da utilização de 4 máquinas constituindo um total de 16 \textit{cores}.
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+	title={Desempenho para matrizes de tamanhos elevados com 64 \textit{cores}},
+	width=13cm, height=5cm,
+	x tick label style={/pgf/number format/1000 sep=},
+	xlabel=Tamanho da matriz,
+	xticklabels={1000, 1200, 1400},
+	ylabel=Tempo \textit{(ms)},
+	ybar interval=0.8,
+	ymajorgrids=true,
+	enlargelimits=0.05,
+]
+\addplot coordinates {(1, 3629.849)(2, 5071.754)(3, 6831.672)(4, 0)};
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+Com o objetivo de conhecer melhor as capacidades do \textit{MPI} e também para testar o nosso programa para matrizes de elevadas dimensões, geramos três matrizes de tamanhos 1000, 1200 e 1400 e aplicamos o algoritmo com 16 máquinas usando um total de 64 \textit{cores}. Como verificamos no gráfico acima, foi possível o cálculo para todos os casos.    
+
+\subsection{Avaliação de Desempenho em Diferentes Arquiteturas}
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+	width=13cm, height=7cm,
+	x tick label style={/pgf/number format/1000 sep=},
+	xlabel=Tamanho da matriz,
+	xticklabels={12, 60},
+	ylabel=Tempo \textit{(ms)},
+	ybar interval=0.8,
+	ymajorgrids=true,
+	enlargelimits=0.05,
+	legend style={at={(0.5, -0.2)},
+	anchor=north,legend columns=2},
+]
+\addplot coordinates {(1, 2.179)(2, 8.843)(3, 0)};
+\addplot coordinates {(1, 3.016)(2, 11.130)(3, 0)};
+\legend{4 Máquinas x 4 \textit{Cores} \,, 16 Máquinas x 1 \textit{Core}};
+\end{axis}
+\end{tikzpicture}
+\\[4mm]
+\begin{tikzpicture}
+\begin{axis}[
+	width=13cm, height=7cm,
+	x tick label style={/pgf/number format/1000 sep=},
+	xlabel=Tamanho da matriz,
+	xticklabels={300, 600},
+	ylabel=Tempo \textit{(ms)},
+	ybar interval=0.8,
+	ymajorgrids=true,
+	enlargelimits=0.05,
+	legend style={at={(0.5, -0.2)},
+	anchor=north,legend columns=2},
+]
+\addplot coordinates {(1, 307.561)(2, 1451.996)(3, 0)};
+\addplot coordinates {(1, 274.521)(2, 1096.687)(3, 0)};
+\legend{4 Máquinas x 4 \textit{Cores} \,, 16 Máquinas x 1 \textit{Core}};
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+Fizemos a comparação de desempenho para matrizes de tamanho 12, 60 e 300 em dois ambientes:
+
+\begin{itemize}
+\item 1º Ambiente: 4 máquinas em que cada uma utiliza 4 \textit{cores};
+\item 2º Ambiente: 16 máquinas em que cada uma utiliza 1 \textit{cores}.
+\end{itemize}
+
+Verificamos que com matrizes de tamanho médio (12 e 60) o desempenho no 1º ambiente é relativamente melhor, enquanto que para matrizes de tamanho elevado (300 e 600) vemos que começa a compensar utilizar mais máquinas com menos \textit{cores} em vez de poucas máquinas com muitos \textit{cores}.
+
+\section{Conclusão}
+
+A realização deste trabalho permitiu o aprofundamento do nosso conhecimentos em vários temas. Aprendemos imenso sobre a gestão de memória dinamicamente em \textit{C} tendo sempre como objetivo um acesso rápido e uso eficiente da memória. \\
+
+O conhecimento adquirido sobre o \textit{MPI} será bastante útil em aplicações futuras, devido a ser uma ferramenta de computação muito poderosa que nos permite abstrair da complexidade existente na computação paralela. \\
+
+Consideramos também que o problema a resolver foi adequado para a aplicação deste método de computação e nos deu bastantes ideias para o colocar em prática numa situação real.
+
+
+% ------------------------------------------------------------
+
+\end{document}
