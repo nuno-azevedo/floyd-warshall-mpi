@@ -13,6 +13,11 @@ The problem to solve consists in finding the shortest path between all pairs of 
 
 
 <br><br>
+## Dependencies
+- [Open MPI](https://www.open-mpi.org/software/ompi/v2.0/)
+
+
+<br><br>
 ## How to Build
 ```bash
 $ make build
@@ -23,6 +28,7 @@ $ make build
 ## How to Run
 ```bash
 $ mpirun -np ${N_PROCESSES} -hostfile ${HOSTFILE} floyd < ${INPUT_FILE}
+$ # Example: mpirun -np 4 -hostfile hosts.txt floyd < inputs/input300x300.txt
 ```
 
 <br><br>
